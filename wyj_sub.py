@@ -9,6 +9,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_classif
 from sklearn.svm import SVC
+from tsne import bh_sne
 
 
 random_seed = 229
@@ -117,21 +118,33 @@ if __name__ == '__main__':
     train_y = train['TARGET']
     test_X = test.drop(['ID'], axis=1)
 
-    selectK = SelectKBest(f_classif, k=220)
-    selectK.fit(train_X, train_y)
+    # train_tsne_X = bh_sne(train_X)
+    # np.save('train_tsne_X.npy', train_tsne_X)
+    # test_tsne_X = bh_sne(test_X)
+    # np.save('test_tsne_X.npy', test_tsne_X)
+    train_tsne = np.load('train_tsne_X.npy')
+    test_tsne = np.load('test_tsne_X.npy')
 
-    train_X = selectK.transform(train_X)
-    test_X = selectK.transform(test_X)
+    train_X['tsne0'] = train_tsne[:, 0]
+    train_X['tsne1'] = train_tsne[:, 1]
+    test_X['tsne0'] = test_tsne[:, 0]
+    test_X['tsne1'] = test_tsne[:, 1]
+
+    # selectK = SelectKBest(f_classif, k=220)
+    # selectK.fit(train_X, train_y)
+
+    # train_X = selectK.transform(train_X)
+    # test_X = selectK.transform(test_X)
 
     # tune_xgb_param(train_X, train_y)
     # sys.exit(0)
 
-    # pred_y1 = get_pred_y1(train_X, train_y, test_X)
+    pred_y1 = get_pred_y1(train_X, train_y, test_X)
     # pred_y2 = get_pred_y2(train_X, train_y, test_X)
-    pred_y3 = get_pred_y3(train_X, train_y, test_X)
+    # pred_y3 = get_pred_y3(train_X, train_y, test_X)
 
     # pred_y = (pred_y1 * 4 + pred_y2 * 1) / 5
-    pred_y = pred_y3
+    pred_y = pred_y1
 
     submission = pd.DataFrame({"ID": test['ID'], 'TARGET': pred_y})
     columns = ['ID', 'TARGET']

@@ -9,7 +9,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_classif
 from sklearn.svm import SVC
-# from tsne import bh_sne
+from tsne import bh_sne
 from sklearn.metrics import roc_auc_score
 
 
@@ -135,24 +135,33 @@ if __name__ == '__main__':
     train_y = train['TARGET']
     test_X = test.drop(['ID'], axis=1)
 
+    selectK = SelectKBest(f_classif, k=220)
+    selectK.fit(train_X, train_y)
+
+    train_sk = selectK.transform(train_X)
+    test_sk = selectK.transform(test_X)
+
+    # train_sk_df = pd.DataFrame(train_sk, index=train.index)
+    # test_sk_df = pd.DataFrame(test_sk, index=test.index)
+
+    # train_X = train_X.join(train_sk_df)
+    # test_X = test_X.join(test_sk_df)
+
     # train_tsne = bh_sne(train_X)
-    # np.save('train_tsne.npy', train_tsne)
+    train_tsne = bh_sne(train_sk)
+    np.save('train_tsne.npy', train_tsne)
     # test_tsne = bh_sne(test_X)
-    # np.save('test_tsne.npy', test_tsne)
-    train_tsne = np.load('train_tsne.npy')
-    test_tsne = np.load('test_tsne.npy')
+    test_tsne = bh_sne(test_sk)
+    np.save('test_tsne.npy', test_tsne)
+    # train_tsne = np.load('train_tsne.npy')
+    # test_tsne = np.load('test_tsne.npy')
 
     train_X['tsne0'] = train_tsne[:, 0]
     train_X['tsne1'] = train_tsne[:, 1]
     test_X['tsne0'] = test_tsne[:, 0]
     test_X['tsne1'] = test_tsne[:, 1]
 
-    # selectK = SelectKBest(f_classif, k=220)
-    # selectK.fit(train_X, train_y)
-
-    # train_X = selectK.transform(train_X)
-    # test_X = selectK.transform(test_X)
-
+    print train_X.shape, test_X.shape
     pred_y1 = get_pred_y1(train_X, train_y, test_X)
     # pred_y2 = get_pred_y2(train_X, train_y, test_X)
     # pred_y3 = get_pred_y3(train_X, train_y, test_X)

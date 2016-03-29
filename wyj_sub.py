@@ -31,7 +31,7 @@ def get_remove_col(train):
     return remove
 
 
-def tune_xgb_param(X, y, xgbcv=False):
+def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
     base_param = {}
     base_param['nthread'] = 2
     base_param['silent'] = 1
@@ -69,19 +69,23 @@ def tune_xgb_param(X, y, xgbcv=False):
     # tune_param['n_estimators'] = [200 + i * 10 for i in range(0, 11)]
 
     model = xgb.XGBClassifier(**base_param)
-    clf = GridSearchCV(model, tune_param, scoring='roc_auc', n_jobs=4, cv=3, verbose=2)
-    clf.fit(X, y)
-    for item in clf.grid_scores_:
-        print item
-    print 'BEST', clf.best_params_, clf.best_score_
 
-    return clf.best_estimator_
+    if sklearn_cv:
+        clf = GridSearchCV(model, tune_param, scoring='roc_auc', n_jobs=4, cv=3, verbose=2)
+        clf.fit(X, y)
+        for item in clf.grid_scores_:
+            print item
+        print 'BEST', clf.best_params_, clf.best_score_
+
+        return clf.best_estimator_
+
+    return model
 
 
 def get_pred_y1(train_X, train_y, test_X):
     X_fit, X_eval, y_fit, y_eval = train_test_split(train_X, train_y, test_size=0.1, random_state=random_seed)
 
-    xgb_model = tune_xgb_param(train_X, train_y, True)
+    xgb_model = tune_xgb_param(train_X, train_y, False, False)
 
     # xgb_model.fit(X_fit, y_fit, early_stopping_rounds=50, eval_metric='auc', eval_set=[(X_fit, y_fit), (X_eval, y_eval)])
     xgb_model.fit(train_X, train_y, early_stopping_rounds=50, eval_metric='auc', eval_set=[(train_X, train_y)])
@@ -118,12 +122,12 @@ if __name__ == '__main__':
     train_y = train['TARGET']
     test_X = test.drop(['ID'], axis=1)
 
-    # train_tsne_X = bh_sne(train_X)
-    # np.save('train_tsne_X.npy', train_tsne_X)
-    # test_tsne_X = bh_sne(test_X)
-    # np.save('test_tsne_X.npy', test_tsne_X)
-    train_tsne = np.load('train_tsne_X.npy')
-    test_tsne = np.load('test_tsne_X.npy')
+    # train_tsne = bh_sne(train_X)
+    # np.save('train_tsne.npy', train_tsne)
+    # test_tsne = bh_sne(test_X)
+    # np.save('test_tsne.npy', test_tsne)
+    train_tsne = np.load('train_tsne.npy')
+    test_tsne = np.load('test_tsne.npy')
 
     train_X['tsne0'] = train_tsne[:, 0]
     train_X['tsne1'] = train_tsne[:, 1]

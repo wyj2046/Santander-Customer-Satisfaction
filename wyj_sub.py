@@ -42,7 +42,7 @@ def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
     base_param['silent'] = 1
     base_param['seed'] = random_seed
     base_param['objective'] = 'binary:logistic'
-    # base_param['scale_pos_weight'] = float(np.sum(y == 0)) / np.sum(y == 1)
+    # base_param['scale_pos_weight'] = float(np.sum(y == 1)) / np.sum(y == 0)  # 该值为小数
 
     # base_param['learning_rate'] = 0.03
     # base_param['n_estimators'] = 500
@@ -107,7 +107,7 @@ def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
 
 
 def verify_xgb_result(train_X, train_y, test_X):
-    X_fit, X_eval, y_fit, y_eval = train_test_split(train_X, train_y, test_size=0.3, random_state=random_seed)
+    X_fit, X_eval, y_fit, y_eval = train_test_split(train_X, train_y, test_size=0.3, random_state=random_seed, stratify=train_y)
     xgb_model = tune_xgb_param(train_X, train_y, False, False)
     xgb_model.fit(train_X, train_y, early_stopping_rounds=None, eval_metric='auc', eval_set=[(train_X, train_y)])
     print('Overall AUC:', roc_auc_score(train_y, xgb_model.predict_proba(train_X)[:, 1]))

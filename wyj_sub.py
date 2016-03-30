@@ -73,7 +73,7 @@ def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
 
     if xgbcv:
         xg_train = xgb.DMatrix(X, label=y)
-        cv_result = xgb.cv(base_param, xg_train, num_boost_round=base_param['n_estimators'], nfold=cv_folds, metrics='auc', early_stopping_rounds=50, verbose_eval=1, show_stdv=False, seed=random_seed)
+        cv_result = xgb.cv(base_param, xg_train, num_boost_round=base_param['n_estimators'], nfold=cv_folds, metrics='auc', early_stopping_rounds=50, verbose_eval=1, show_stdv=False, seed=random_seed, stratified=True)
         base_param['n_estimators'] = cv_result.shape[0]
 
     tune_param = {}

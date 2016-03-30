@@ -33,6 +33,10 @@ def get_remove_col(train):
     return remove
 
 
+def count_0_num(x):
+    return np.sum(x == 0)
+
+
 def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
     base_param = {}
     base_param['nthread'] = 4
@@ -41,13 +45,13 @@ def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
     base_param['objective'] = 'binary:logistic'
     # base_param['scale_pos_weight'] = float(np.sum(y == 0)) / np.sum(y == 1)
 
-    base_param['learning_rate'] = 0.03
-    base_param['n_estimators'] = 500
-    base_param['max_depth'] = 5
-    base_param['min_child_weight'] = 9
-    base_param['gamma'] = 0.23
-    base_param['subsample'] = 0.7
-    base_param['colsample_bytree'] = 0.8
+    # base_param['learning_rate'] = 0.03
+    # base_param['n_estimators'] = 500
+    # base_param['max_depth'] = 5
+    # base_param['min_child_weight'] = 9
+    # base_param['gamma'] = 0.23
+    # base_param['subsample'] = 0.7
+    # base_param['colsample_bytree'] = 0.8
 
     # https://www.kaggle.com/yuansun/santander-customer-satisfaction/lb-0-84-for-starters
     # base_param['missing'] = np.nan
@@ -58,6 +62,15 @@ def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
     # base_param['gamma'] = 0.23
     # base_param['subsample'] = 0.95
     # base_param['colsample_bytree'] = 0.85
+
+    # https://www.kaggle.com/signochastic/santander-customer-satisfaction/0-69-subsample/run/191661
+    base_param['learning_rate'] = 0.02
+    base_param['n_estimators'] = 570
+    base_param['max_depth'] = 5
+    base_param['min_child_weight'] = 1
+    base_param['gamma'] = 0
+    base_param['subsample'] = 0.68
+    base_param['colsample_bytree'] = 0.7
 
     if xgbcv:
         xg_train = xgb.DMatrix(X, label=y)
@@ -97,10 +110,10 @@ def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
 def get_pred_y1(train_X, train_y, test_X):
     X_fit, X_eval, y_fit, y_eval = train_test_split(train_X, train_y, test_size=0.3, random_state=random_seed)
 
-    xgb_model = tune_xgb_param(train_X, train_y, True, False)
+    xgb_model = tune_xgb_param(train_X, train_y, False, False)
 
-    xgb_model.fit(X_fit, y_fit, early_stopping_rounds=50, eval_metric='auc', eval_set=[(X_fit, y_fit), (X_eval, y_eval)])
-    # xgb_model.fit(train_X, train_y, early_stopping_rounds=50, eval_metric='auc', eval_set=[(train_X, train_y)])
+    # xgb_model.fit(X_fit, y_fit, early_stopping_rounds=50, eval_metric='auc', eval_set=[(X_fit, y_fit), (X_eval, y_eval)])
+    xgb_model.fit(train_X, train_y, early_stopping_rounds=None, eval_metric='auc', eval_set=[(train_X, train_y)])
 
     print('Overall AUC:', roc_auc_score(train_y, xgb_model.predict_proba(train_X)[:, 1]))
     pred_y = xgb_model.predict_proba(test_X)
@@ -127,6 +140,9 @@ if __name__ == '__main__':
     train = train.replace(-999999, 2)
     test = test.replace(-999999, 2)
 
+    train_0_num = train.apply(axis=1, func=count_0_num)
+    test_0_num = test.apply(axis=1, func=count_0_num)
+
     remove = get_remove_col(train)
     train.drop(remove, axis=1, inplace=True)
     test.drop(remove, axis=1, inplace=True)
@@ -135,11 +151,11 @@ if __name__ == '__main__':
     train_y = train['TARGET']
     test_X = test.drop(['ID'], axis=1)
 
-    selectK = SelectKBest(f_classif, k=220)
-    selectK.fit(train_X, train_y)
+    # selectK = SelectKBest(f_classif, k=220)
+    # selectK.fit(train_X, train_y)
 
-    train_sk = selectK.transform(train_X)
-    test_sk = selectK.transform(test_X)
+    # train_sk = selectK.transform(train_X)
+    # test_sk = selectK.transform(test_X)
 
     # train_sk_df = pd.DataFrame(train_sk, index=train.index)
     # test_sk_df = pd.DataFrame(test_sk, index=test.index)
@@ -148,18 +164,22 @@ if __name__ == '__main__':
     # test_X = test_X.join(test_sk_df)
 
     # train_tsne = bh_sne(train_X)
-    train_tsne = bh_sne(train_sk)
-    np.save('train_tsne.npy', train_tsne)
+    # train_tsne = bh_sne(train_sk)
+    # np.save('train_tsne.npy', train_tsne)
     # test_tsne = bh_sne(test_X)
-    test_tsne = bh_sne(test_sk)
-    np.save('test_tsne.npy', test_tsne)
-    # train_tsne = np.load('train_tsne.npy')
-    # test_tsne = np.load('test_tsne.npy')
+    # test_tsne = bh_sne(test_sk)
+    # np.save('test_tsne.npy', test_tsne)
+
+    train_tsne = np.load('train_tsne.npy')
+    test_tsne = np.load('test_tsne.npy')
 
     train_X['tsne0'] = train_tsne[:, 0]
     train_X['tsne1'] = train_tsne[:, 1]
     test_X['tsne0'] = test_tsne[:, 0]
     test_X['tsne1'] = test_tsne[:, 1]
+
+    train['num0'] = train_0_num
+    test['num0'] = test_0_num
 
     print train_X.shape, test_X.shape
     pred_y1 = get_pred_y1(train_X, train_y, test_X)

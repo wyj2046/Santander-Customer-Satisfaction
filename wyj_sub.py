@@ -8,7 +8,6 @@ from sklearn.cross_validation import train_test_split
 from sklearn.grid_search import GridSearchCV
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_classif
-from sklearn.svm import SVC
 from tsne import bh_sne
 from sklearn.metrics import roc_auc_score
 
@@ -107,30 +106,88 @@ def tune_xgb_param(X, y, xgbcv=False, sklearn_cv=False):
     return model
 
 
-def get_pred_y1(train_X, train_y, test_X):
+def verify_xgb_result(train_X, train_y, test_X):
     X_fit, X_eval, y_fit, y_eval = train_test_split(train_X, train_y, test_size=0.3, random_state=random_seed)
-
     xgb_model = tune_xgb_param(train_X, train_y, False, False)
-
-    # xgb_model.fit(X_fit, y_fit, early_stopping_rounds=50, eval_metric='auc', eval_set=[(X_fit, y_fit), (X_eval, y_eval)])
     xgb_model.fit(train_X, train_y, early_stopping_rounds=None, eval_metric='auc', eval_set=[(train_X, train_y)])
-
     print('Overall AUC:', roc_auc_score(train_y, xgb_model.predict_proba(train_X)[:, 1]))
     pred_y = xgb_model.predict_proba(test_X)
     return pred_y[:, 1]
 
 
-def get_pred_y2(train_X, train_y, test_X):
-    clf = RandomForestClassifier(n_estimators=100, max_depth=6, min_samples_split=100, random_state=random_seed, verbose=1)
-    clf.fit(train_X, train_y)
-    pred_y = clf.predict_proba(test_X)
-    return pred_y[:, 1]
+def get_pred(model, train_X, train_y, test_X):
+    model.fit(train_X, train_y)
+    pred_y = model.predict_proba(test_X)[:, 1]
+    params = model.get_params()
+    print params
+    print('Overall AUC:', roc_auc_score(train_y, model.predict_proba(train_X)[:, 1]))
+    return pred_y
 
 
-def get_pred_y3(train_X, train_y, test_X):
-    clf = SVC(kernel='linear', C=1.0, probability=True, verbose=True, random_state=random_seed)
-    clf.fit(train_X, train_y)
-    pred_y = clf.predict_proba(test_X)
+def xgb1_model(train_X, train_y, test_X):
+    base_param = {}
+    base_param['nthread'] = 4
+    base_param['silent'] = 1
+    base_param['seed'] = random_seed
+    base_param['objective'] = 'binary:logistic'
+
+    base_param['learning_rate'] = 0.03
+    base_param['n_estimators'] = 500
+    base_param['max_depth'] = 5
+    base_param['min_child_weight'] = 9
+    base_param['gamma'] = 0.23
+    base_param['subsample'] = 0.7
+    base_param['colsample_bytree'] = 0.8
+
+    model = xgb.XGBClassifier(**base_param)
+    pred_y = get_pred(model, train_X, train_y, test_X)
+    return pred_y
+
+
+def xgb2_model(train_X, train_y, test_X):
+    base_param = {}
+    base_param['nthread'] = 4
+    base_param['silent'] = 1
+    base_param['seed'] = random_seed
+    base_param['objective'] = 'binary:logistic'
+
+    base_param['missing'] = np.nan
+    base_param['learning_rate'] = 0.03
+    base_param['n_estimators'] = 350
+    base_param['max_depth'] = 5
+    base_param['min_child_weight'] = 1
+    base_param['gamma'] = 0.23
+    base_param['subsample'] = 0.95
+    base_param['colsample_bytree'] = 0.85
+
+    model = xgb.XGBClassifier(**base_param)
+    pred_y = get_pred(model, train_X, train_y, test_X)
+    return pred_y
+
+
+def xgb3_model(train_X, train_y, test_X):
+    base_param = {}
+    base_param['nthread'] = 4
+    base_param['silent'] = 1
+    base_param['seed'] = random_seed
+    base_param['objective'] = 'binary:logistic'
+
+    base_param['learning_rate'] = 0.02
+    base_param['n_estimators'] = 570
+    base_param['max_depth'] = 5
+    base_param['min_child_weight'] = 1
+    base_param['gamma'] = 0
+    base_param['subsample'] = 0.68
+    base_param['colsample_bytree'] = 0.7
+
+    model = xgb.XGBClassifier(**base_param)
+    pred_y = get_pred(model, train_X, train_y, test_X)
+    return pred_y
+
+
+def rf1_model(train_X, train_y, test_X):
+    model = RandomForestClassifier(n_estimators=100, max_depth=6, min_samples_split=100, random_state=random_seed, verbose=1)
+    pred_y = get_pred(model, train_X, train_y, test_X)
     return pred_y[:, 1]
 
 
@@ -151,25 +208,23 @@ if __name__ == '__main__':
     train_y = train['TARGET']
     test_X = test.drop(['ID'], axis=1)
 
+    # seleckt k
     # selectK = SelectKBest(f_classif, k=220)
     # selectK.fit(train_X, train_y)
-
     # train_sk = selectK.transform(train_X)
     # test_sk = selectK.transform(test_X)
-
     # train_sk_df = pd.DataFrame(train_sk, index=train.index)
     # test_sk_df = pd.DataFrame(test_sk, index=test.index)
-
     # train_X = train_X.join(train_sk_df)
     # test_X = test_X.join(test_sk_df)
 
+    # tsne
     # train_tsne = bh_sne(train_X)
     # train_tsne = bh_sne(train_sk)
     # np.save('train_tsne.npy', train_tsne)
     # test_tsne = bh_sne(test_X)
     # test_tsne = bh_sne(test_sk)
     # np.save('test_tsne.npy', test_tsne)
-
     train_tsne = np.load('train_tsne.npy')
     test_tsne = np.load('test_tsne.npy')
 
@@ -181,13 +236,11 @@ if __name__ == '__main__':
     train['num0'] = train_0_num
     test['num0'] = test_0_num
 
-    print train_X.shape, test_X.shape
-    pred_y1 = get_pred_y1(train_X, train_y, test_X)
-    # pred_y2 = get_pred_y2(train_X, train_y, test_X)
-    # pred_y3 = get_pred_y3(train_X, train_y, test_X)
+    pred_y1 = xgb1_model(train_X, train_y, test_X)
+    pred_y2 = xgb2_model(train_X, train_y, test_X)
+    pred_y3 = xgb3_model(train_X, train_y, test_X)
 
-    # pred_y = (pred_y1 * 4 + pred_y2 * 1) / 5
-    pred_y = pred_y1
+    pred_y = (pred_y1 + pred_y2 + pred_y3) / 3
 
     submission = pd.DataFrame({"ID": test['ID'], 'TARGET': pred_y})
     columns = ['ID', 'TARGET']
